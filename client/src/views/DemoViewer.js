@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import OpenSeadragon from 'openseadragon';
 import IrisTileSource from './IrisTileSource';
-import { ZoomInOutlined, ZoomOutOutlined, HomeOutlined, FullscreenOutlined, CloseOutlined } from '@ant-design/icons';
+import { ZoomInOutlined, ZoomOutOutlined, HomeOutlined, FullscreenOutlined } from '@ant-design/icons';
 
 const DemoViewer = () => {
     const osdViewerRef = useRef(null);
@@ -105,10 +105,6 @@ const DemoViewer = () => {
         }
     };
 
-    const handleClose = () => {
-        window.close();
-    };
-
     return (
         <div
             ref={containerRef}
@@ -135,7 +131,7 @@ const DemoViewer = () => {
                     color: '#333',
                     fontSize: '28px'
                 }}>
-                    Example: Iris TileSource Support
+                    IRIS Digital Pathology
                 </h1>
                 <p style={{
                     margin: '0',
@@ -199,6 +195,22 @@ const DemoViewer = () => {
                             <ZoomInOutlined style={iconStyle} onClick={handleZoomIn} />
                             <ZoomOutOutlined style={iconStyle} onClick={handleZoomOut} />
                             <HomeOutlined style={iconStyle} onClick={handleHome} />
+                            <FullscreenOutlined style={iconStyle} onClick={handleFullscreen} />
+                        </div>
+
+                        {/* Zoom Info */}
+                        <div style={{
+                            position: 'absolute',
+                            top: '20px',
+                            right: '20px',
+                            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                            color: 'white',
+                            padding: '8px 12px',
+                            borderRadius: '4px',
+                            fontSize: '14px',
+                            zIndex: 1000
+                        }}>
+                            Zoom: {Math.round(zoomLevel * 100)}%
                         </div>
 
                         {/* OpenSeadragon Viewer */}

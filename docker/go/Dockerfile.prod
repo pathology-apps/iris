@@ -1,0 +1,265 @@
+# FROM golang:1.22.4-bullseye AS go_builder
+# FROM node:21.2-bullseye-slim AS npm_builder
+# # FROM registry-prod.app.med.umich.edu/pathinfo/systems/oracle:19.15
+
+# # Need gcc build binaries
+# RUN apt-get update -y && apt-get install build-essential -y && \
+#     mkdir -p /usr/{local,packages}/go && \
+#     mkdir -p /usr/local/node
+# COPY --from=go_builder /usr/local/go /usr/local/go
+# COPY --from=npm_builder /usr/local/bin /usr/local/bin
+# COPY --from=npm_builder /usr/local/lib /usr/local/lib
+# ENV GOPATH="/usr/packages/go"
+# ENV PATH="/usr/local/go/bin:/usr/packages/go/bin:${PATH}"
+
+# RUN go install github.com/githubnemo/CompileDaemon@v1.4.0
+
+# ARG APP
+# ENV APP ${APP}
+
+# ARG ENV
+# ENV ENV ${ENV}
+
+# ARG NODE_ENV
+# ENV NODE_ENV ${NODE_ENV}
+
+# # Copy source:
+# RUN mkdir /app
+# WORKDIR /app
+# COPY . .
+
+# # Install pnpm
+# RUN npm install -g pnpm@v9.1.4
+
+# # Install server and client deps:
+# WORKDIR /app/server
+# RUN go get && go build -v -o /app/server/build/${APP}
+# WORKDIR /app/client
+# RUN NODE_ENV=development pnpm install && ENV=${ENV} NODE_ENV=${NODE_ENV} IS_JENKINS=true pnpm run build
+# WORKDIR /app
+
+# # Copy entrypoint
+# COPY docker/go/go.entrypoint.sh /usr/local/bin/go.entrypoint.sh
+# RUN chmod +x /usr/local/bin/go.entrypoint.sh
+
+# ENTRYPOINT ["go.entrypoint.sh"]
+
+############################################
+
+# # Stage 1: Go builder
+# FROM golang:1.23.2-bullseye AS go_builder
+# RUN go install github.com/githubnemo/CompileDaemon@latest
+
+# # Stage 2: Oracle instant client
+# FROM debian:bullseye-slim AS oracle_builder
+# # Oracle Instant Client version configuration
+# ARG ORACLE_VERSION=19.25
+# ARG ORACLE_BUILD=0.0.0dbru
+# ARG ORACLE_PACKAGE_VERSION=${ORACLE_VERSION}.${ORACLE_BUILD}
+# ARG ORACLE_DOWNLOAD_URL=https://download.oracle.com/otn_software/linux/instantclient/${ORACLE_VERSION//./}000/instantclient-basiclite-linux.x64-${ORACLE_PACKAGE_VERSION}.zip
+
+# RUN apt-get update && \
+#     apt-get install -y --no-install-recommends \
+#     unzip \
+#     wget \
+#     ca-certificates && \
+#     rm -rf /var/lib/apt/lists/* && \
+#     wget -O instantclient.zip "${ORACLE_DOWNLOAD_URL}" && \
+#     unzip instantclient.zip && \
+#     rm instantclient.zip && \
+#     mkdir -p /oracle/lib /oracle/network/admin && \
+#     mv instantclient_* /oracle/lib/ && \
+#     cd /oracle/lib && \
+#     mv instantclient_*/* . && \
+#     rm -rf instantclient_*
+
+# # Final stage: Debian slim image
+# FROM debian:bullseye-slim
+# ARG ORACLE_VERSION=19.25
+# # Install required packages including tzdata
+# RUN apt-get update && \
+#     apt-get install -y --no-install-recommends \
+#     libaio1 \
+#     git \
+#     curl \
+#     ca-certificates \
+#     build-essential \
+#     tzdata && \
+#     rm -rf /var/lib/apt/lists/*
+
+# # Set timezone
+# ENV TZ=America/Detroit
+# RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && \
+#     echo $TZ > /etc/timezone
+
+# ARG UID
+# ENV UID=${UID:-1000}
+# # Create non-root user
+# RUN useradd -m -u ${UID} appuser
+
+# # Set up Oracle environment with version from ARG
+# ENV ORACLE_HOME=/usr/lib/oracle/${ORACLE_VERSION}/client64 \
+#     TNS_ADMIN=/usr/lib/oracle/${ORACLE_VERSION}/client64/network/admin \
+#     LD_LIBRARY_PATH=/usr/lib/oracle/${ORACLE_VERSION}/client64/lib \
+#     NLS_LANG=AMERICAN_AMERICA.AL32UTF8
+
+# # Create Oracle directories using version from ARG
+# RUN mkdir -p $ORACLE_HOME/lib $TNS_ADMIN && \
+#     chmod -R 755 $ORACLE_HOME
+
+# # Copy Oracle files
+# COPY --from=oracle_builder /oracle/lib $ORACLE_HOME/lib/
+# # Copy TNS files from local directory
+# COPY docker/go/ora/* $TNS_ADMIN/
+# # Copy Go files
+# COPY --from=go_builder /usr/local/go /usr/local/go
+# COPY --from=go_builder /go/bin/CompileDaemon /usr/local/bin/CompileDaemon
+
+# # Set up directories and permissions
+# WORKDIR /app
+# RUN mkdir -p /app/go-cache /app/server/build && \
+#     chown -R appuser:appuser /app /app/go-cache /app/server/build $ORACLE_HOME && \
+#     chmod -R 755 /app/server/build $ORACLE_HOME/lib
+
+# # Set environment variables
+# ENV GOPATH=/app/go-cache \
+#     GOCACHE=/app/go-cache \
+#     PATH=/usr/local/go/bin:/app/go-cache/bin:$ORACLE_HOME/bin:$PATH \
+#     APP=${APP:-vsb} \
+#     ENV=${ENV:-local} \
+#     IS_JENKINS=false \
+#     HOST=localhost \
+#     PORT=3000 \
+#     CGO_ENABLED=1 \
+#     GOPROXY=https://proxy.golang.org,direct \
+#     GOSUMDB=sum.golang.org \
+#     GO111MODULE=on
+
+# # Copy entrypoint script
+# COPY docker/go/entrypoint.sh /usr/local/bin/entrypoint.sh
+# RUN chmod +x /usr/local/bin/entrypoint.sh && \
+#     chown appuser:appuser /usr/local/bin/entrypoint.sh
+
+# # Verify library and timezone setup
+# RUN ldconfig && \
+#     ls -la $TNS_ADMIN && \
+#     ls -la $ORACLE_HOME/lib/libclntsh.so* && \
+#     ldd $ORACLE_HOME/lib/libclntsh.so.19.1 && \
+#     date
+
+# # Switch to non-root user
+# USER appuser
+# WORKDIR /app/server
+# ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+
+###################################
+
+# Stage 1: Go builder
+FROM golang:1.23.3-bookworm AS go_builder
+WORKDIR /app
+COPY server/go.mod server/go.sum ./
+RUN go mod download
+COPY server ./
+# Build with CGO enabled for Oracle support
+RUN CGO_ENABLED=1 GOOS=linux go build -a -o vsb .
+
+# Stage 2: Node.js builder
+FROM node:23.1.0-alpine3.20 AS node_builder
+WORKDIR /app
+ARG NODE_ENV
+ARG IS_JENKINS
+ARG HOST
+ARG PORT
+ENV NODE_ENV=${NODE_ENV:-production} \
+    IS_JENKINS=${IS_JENKINS:-true} \
+    HOST=${HOST:-localhost} \
+    PORT=${PORT:-3000}
+COPY version.json ./
+COPY client ./client
+WORKDIR /app/client
+RUN npm install -g pnpm && pnpm install --prod=false
+RUN pnpm run build
+
+# Stage 3: Oracle instant client
+FROM debian:bookworm-20240926-slim AS oracle_builder
+# Oracle Instant Client version configuration
+ARG ORACLE_VERSION=19.25
+ARG ORACLE_BUILD=0.0.0dbru
+ARG ORACLE_PACKAGE_VERSION=${ORACLE_VERSION}.${ORACLE_BUILD}
+ARG ORACLE_DOWNLOAD_URL=https://download.oracle.com/otn_software/linux/instantclient/${ORACLE_VERSION//./}000/instantclient-basiclite-linux.x64-${ORACLE_PACKAGE_VERSION}.zip
+# Install and set up Oracle client
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends unzip wget ca-certificates && \
+    rm -rf /var/lib/apt/lists/* && \
+    wget -O instantclient.zip "${ORACLE_DOWNLOAD_URL}" && \
+    unzip instantclient.zip && \
+    rm instantclient.zip && \
+    mkdir -p /oracle/lib && \
+    mv instantclient_* /oracle/lib/ && \
+    cd /oracle/lib && \
+    mv instantclient_*/* . && \
+    rm -rf instantclient_* && \
+    rm -f *.jar *.sql BASIC_LITE_README BASIC_LITE_LICENSE adrci genezi
+
+# Final stage: Debian slim image
+FROM debian:bookworm-20240926-slim
+ARG ORACLE_VERSION=19.25
+# Install minimal required packages
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    libaio1 \
+    libz1 \
+    libnsl2 \
+    tzdata \
+    ca-certificates \
+    curl && \
+    rm -rf /var/lib/apt/lists/* && \
+    ln -sf /usr/share/zoneinfo/America/Detroit /etc/localtime && \
+    echo "America/Detroit" > /etc/timezone
+
+# Set up Oracle environment with version from ARG
+ENV ORACLE_HOME=/usr/lib/oracle/${ORACLE_VERSION}/client64 \
+    TNS_ADMIN=/usr/lib/oracle/${ORACLE_VERSION}/client64/network/admin \
+    LD_LIBRARY_PATH=/usr/lib/oracle/${ORACLE_VERSION}/client64/lib:/lib64 \
+    PATH=/app:$PATH \
+    TZ=America/Detroit \
+    APP=vsb \
+    ENV=production \
+    NODE_ENV=production \
+    IS_JENKINS=true \
+    HOST=localhost \
+    PORT=3000
+
+# Create necessary directories using version from ARG
+RUN mkdir -p /usr/lib/oracle/${ORACLE_VERSION}/client64/lib \
+    /usr/lib/oracle/${ORACLE_VERSION}/client64/network/admin \
+    /app/server \
+    /app/client/build
+
+# Copy Oracle files
+COPY --from=oracle_builder /oracle/lib /usr/lib/oracle/${ORACLE_VERSION}/client64/lib/
+
+# Copy TNS files
+COPY docker/go/ora/* /usr/lib/oracle/${ORACLE_VERSION}/client64/network/admin/
+
+# Copy application files
+COPY --from=go_builder /app/vsb /app/server/
+COPY --from=node_builder /app/client/build /app/client/build
+COPY version.json /app/version.json
+COPY CHANGELOG.md /app/CHANGELOG.md
+
+# Run ldconfig to update library cache
+RUN ldconfig
+
+# Create a non-root user
+RUN useradd -r -u 1000 appuser && \
+    chown -R appuser:appuser /app /usr/lib/oracle
+
+USER appuser
+WORKDIR /app/server
+
+# # Copy entrypoint
+# COPY docker/go/go.entrypoint.sh /usr/local/bin/go.entrypoint.sh
+# # RUN chmod +x /usr/local/bin/go.entrypoint.sh
+
+# ENTRYPOINT ["go.entrypoint.sh"]

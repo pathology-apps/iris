@@ -1,0 +1,105 @@
+# Stage 1: Go builder
+FROM golang:1.23.2-bullseye AS go_builder
+RUN go install github.com/githubnemo/CompileDaemon@latest
+
+# Stage 2: Oracle instant client
+FROM debian:bullseye-slim AS oracle_builder
+# Oracle Instant Client version configuration
+ARG ORACLE_VERSION=19.25
+ARG ORACLE_BUILD=0.0.0dbru
+ARG ORACLE_PACKAGE_VERSION=${ORACLE_VERSION}.${ORACLE_BUILD}
+ARG ORACLE_DOWNLOAD_URL=https://download.oracle.com/otn_software/linux/instantclient/${ORACLE_VERSION//./}000/instantclient-basiclite-linux.x64-${ORACLE_PACKAGE_VERSION}.zip
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    unzip \
+    wget \
+    ca-certificates && \
+    rm -rf /var/lib/apt/lists/* && \
+    wget -O instantclient.zip "${ORACLE_DOWNLOAD_URL}" && \
+    unzip instantclient.zip && \
+    rm instantclient.zip && \
+    mkdir -p /oracle/lib /oracle/network/admin && \
+    mv instantclient_* /oracle/lib/ && \
+    cd /oracle/lib && \
+    mv instantclient_*/* . && \
+    rm -rf instantclient_*
+
+# Final stage: Debian slim image
+FROM debian:bullseye-slim
+ARG ORACLE_VERSION=19.25
+# Install required packages including tzdata
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    libaio1 \
+    git \
+    curl \
+    ca-certificates \
+    build-essential \
+    tzdata && \
+    rm -rf /var/lib/apt/lists/*
+
+# Set timezone
+ENV TZ=America/Detroit
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && \
+    echo $TZ > /etc/timezone
+
+ARG UID
+ENV UID=${UID:-1000}
+# Create non-root user
+RUN useradd -m -u ${UID} appuser
+
+# Set up Oracle environment with version from ARG
+ENV ORACLE_HOME=/usr/lib/oracle/${ORACLE_VERSION}/client64 \
+    TNS_ADMIN=/usr/lib/oracle/${ORACLE_VERSION}/client64/network/admin \
+    LD_LIBRARY_PATH=/usr/lib/oracle/${ORACLE_VERSION}/client64/lib \
+    NLS_LANG=AMERICAN_AMERICA.AL32UTF8
+
+# Create Oracle directories using version from ARG
+RUN mkdir -p $ORACLE_HOME/lib $TNS_ADMIN && \
+    chmod -R 755 $ORACLE_HOME
+
+# Copy Oracle files
+COPY --from=oracle_builder /oracle/lib $ORACLE_HOME/lib/
+# Copy TNS files from local directory
+COPY docker/go/ora/* $TNS_ADMIN/
+# Copy Go files
+COPY --from=go_builder /usr/local/go /usr/local/go
+COPY --from=go_builder /go/bin/CompileDaemon /usr/local/bin/CompileDaemon
+
+# Set up directories and permissions
+WORKDIR /app
+RUN mkdir -p /app/go-cache /app/server/build && \
+    chown -R appuser:appuser /app /app/go-cache /app/server/build $ORACLE_HOME && \
+    chmod -R 755 /app/server/build $ORACLE_HOME/lib
+
+# Set environment variables
+ENV GOPATH=/app/go-cache \
+    GOCACHE=/app/go-cache \
+    PATH=/usr/local/go/bin:/app/go-cache/bin:$ORACLE_HOME/bin:$PATH \
+    APP=${APP:-vsb} \
+    ENV=${ENV:-local} \
+    IS_JENKINS=false \
+    HOST=localhost \
+    PORT=3000 \
+    CGO_ENABLED=1 \
+    GOPROXY=https://proxy.golang.org,direct \
+    GOSUMDB=sum.golang.org \
+    GO111MODULE=on
+
+# Copy entrypoint script
+COPY docker/go/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh && \
+    chown appuser:appuser /usr/local/bin/entrypoint.sh
+
+# Verify library and timezone setup
+RUN ldconfig && \
+    ls -la $TNS_ADMIN && \
+    ls -la $ORACLE_HOME/lib/libclntsh.so* && \
+    ldd $ORACLE_HOME/lib/libclntsh.so.19.1 && \
+    date
+
+# Switch to non-root user
+USER appuser
+WORKDIR /app/server
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

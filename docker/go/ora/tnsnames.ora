@@ -1,0 +1,75 @@
+ptap.world =
+  (DESCRIPTION =
+    (SDU=1500)
+    (ADDRESS = (PROTOCOL = TCP)(HOST = ptap.mcit.med.umich.edu)(PORT = 1521))
+    (CONNECT_DATA =
+      (SERVER = POOLED)
+      (SERVICE_NAME = ptap.world)
+    )
+  )
+ptat.world =
+  (DESCRIPTION =
+    (SDU=1500)
+    (ADDRESS = (PROTOCOL = TCP)(HOST = ptat_a.mcit.med.umich.edu)(PORT = 1521))
+    (ADDRESS = (PROTOCOL = TCP)(HOST = ptat_b.mcit.med.umich.edu)(PORT = 1521))
+    (ENABLE=BROKEN)(LOAD_BALANCE=OFF)(FAILOVER=ON)
+    (CONNECT_DATA =
+      (SERVER = POOLED)
+      (SERVICE_NAME = ptatfan.world)
+      (FAILOVER_MODE = (TYPE = SELECT)(METHOD = BASIC)(RETRIES = 10)(DELAY = 15))
+    )
+  )
+ptad.world =
+  (DESCRIPTION =
+    (SDU=1500)
+    (ADDRESS = (PROTOCOL = TCP)(HOST = ptad.mcit.med.umich.edu)(PORT = 1521))
+    (CONNECT_DATA =
+      (SERVER = POOLED)
+      (SERVICE_NAME = ptad.world)
+    )
+  )
+pbad.world =
+  (DESCRIPTION =
+    (SDU=1500)
+    (ADDRESS = (PROTOCOL = TCP)(HOST = pbad.mcit.med.umich.edu)(PORT = 1521))
+    (CONNECT_DATA =
+      (SERVER = POOLED)
+      (SERVICE_NAME = pbad.world)
+    )
+  )
+PathLog =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = path_log.med.umich.edu)(PORT = 1521))
+    (CONNECT_DATA =
+      (SERVER = DEDICATED)
+      (SERVICE_NAME = hl7logs.path.med.umich.edu)
+    )
+  )
+SoftLIVE =
+  (DESCRIPTION =
+    (ADDRESS =
+      (PROTOCOL = TCP)
+      (HOST = umlabdb1-srv.path.med.umich.edu )
+      (PORT = 1521)
+    )
+    (CONNECT_DATA = 
+      (SERVER = DEDICATED)
+      (SERVICE_NAME = labp8.umich)
+    )
+  )
+SoftQA =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = 172.20.27.232)(PORT = 1521))
+    (CONNECT_DATA =
+      (SERVER = DEDICATED)
+      (SERVICE_NAME = qcmn.umich)
+    )
+  )
+SoftTEST =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = 172.20.27.232)(PORT = 1521))
+    (CONNECT_DATA =
+      (SERVER = DEDICATED)
+      (SERVICE_NAME = tcmn.umich)
+    )
+  )

@@ -16,7 +16,7 @@ const getPlugins = () => {
     const plugins = [
         new CleanWebpackPlugin(),
         new HtmlWebpackPlugin({
-            title: 'VSB',
+            title: 'IRIS Digital Pathology',
             filename: path.resolve(__dirname, 'build/index.html'),
             template: path.resolve(__dirname, 'src/index.ejs'),
             favicon: path.resolve(__dirname, 'images/Signature-Vertical-M.png'),
