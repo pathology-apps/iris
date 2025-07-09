@@ -1,0 +1,54 @@
+server {
+    http2 on;
+    listen 443 ssl;
+
+    ssl_certificate /etc/nginx/ssl/${NGINX_HOSTNAME}.crt;
+    ssl_trusted_certificate /etc/nginx/ssl/${NGINX_HOSTNAME}.crt;
+    ssl_certificate_key /etc/nginx/ssl/${NGINX_HOSTNAME}.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers on;
+    ssl_ciphers "EECDH+AESGCM:EDH+AESGCM";
+    ssl_ecdh_curve secp384r1;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_tickets off;
+    
+    ssl_dhparam /etc/nginx/ssl/dhparams.pem;
+
+    root /build/app;
+    index index.html index.htm;
+
+    server_name ${NGINX_HOSTNAME} www.${NGINX_HOSTNAME};
+
+        #add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
+        #add_header 'Access-Control-Allow-Headers' 'DNT, X-CustomHeader, Keep-Alive, User-Agent, X-Requested-With, If-Modified-Since, Cache-Control, Content-Type';
+        #if ($request_method = 'OPTIONS') {
+        #    return 204;  # Respond with success for preflight requests
+        #}
+
+        #include fastcgi_params;
+        #fastcgi_pass iipsrv:9000;   # Ensure this matches the port exposed by the iipsrv container
+        #fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        #fastcgi_param PATH_INFO $fastcgi_script_name;
+    location /imageserver/fcgi-bin/iipsrv.fcgi {
+        add_header 'Access-Control-Allow-Origin' '*';
+
+        fastcgi_pass    iipsrv:9000;
+        fastcgi_param   SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param   PATH_INFO $fastcgi_script_name;
+        fastcgi_param   REQUEST_METHOD $request_method;
+        fastcgi_param   QUERY_STRING $query_string;
+        fastcgi_param   CONTENT_TYPE $content_type;
+        fastcgi_param   CONTENT_LENGTH $content_length;
+        fastcgi_param   SERVER_PROTOCOL $server_protocol;
+        fastcgi_param   REQUEST_URI $request_uri;
+        fastcgi_param   HTTPS $https if_not_empty;
+    }
+
+    location @go_app {
+        proxy_pass http://go:3000; # Assuming your Go app uses port 3000
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}

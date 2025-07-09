@@ -1,0 +1,31 @@
+{
+    "compilerOptions": {
+      "baseUrl": ".", 
+      "paths": {
+        "@actions/*": ["./client/src/actions/*"],
+        "@client/*": ["./client/*"],
+        "@components/*": ["./client/src/components/*"],
+        "@containers/*": ["./client/src/containers/*"],
+        "@hooks/*": ["./client/src/hooks/*"],
+        "@hoc/*": ["./client/src/hoc/*"],
+        "@formatters/*": ["./client/src/organizers/formatters/*"],
+        "@images/*": ["./client/images/*"],
+        "@libs/*": ["./client/src/libs/*"],
+        "@organizers/*": ["./client/src/organizers/*"],
+        "@reducers/*": ["./client/src/reducers/*"],
+        "@project/*": ["./client/*"],
+        "@socket/*": ["./client/src/actions/socket/*"],
+        "@sounds/*": ["./client/sounds/*"],
+        "@store/*": ["./client/src/store/*"],
+        "@templates/*": ["./client/src/templates/*"],
+        "@views/*": ["./client/src/views/*"]
+      }
+    },
+    "include": [
+      "./client/src/**/*"
+    ],
+    "exclude": [
+      "**/node_modules/*"
+    ]
+  }
+  

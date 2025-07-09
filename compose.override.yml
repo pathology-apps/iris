@@ -1,0 +1,32 @@
+services:
+  go:
+    build:
+      dockerfile: docker/go/Dockerfile.dev
+      args:
+        UID: ${UID:-1000}
+    ports:
+      - "${GO_PORT:-3000}:3000"
+      - "${PPROF_PORT:-3001}:3001"
+      - "${HEALTH_PORT:-3002}:3002"
+    secrets:
+      - SQLSERVER_USER
+      - SQLSERVER_PASS
+      - SQLSERVER_HOST
+      - SQLSERVER_DB
+      - SQLSERVER_PORT
+    volumes:
+      - "./:/app"
+    user: appuser
+
+  node:
+    build:
+      context: .
+      dockerfile: docker/node/Dockerfile
+      args:
+        ENV: ${ENV}
+        NODE_ENV: ${NODE_ENV}
+    ports:
+      - "${WEBPACK_DEV_SERVER_PORT}:${WEBPACK_DEV_SERVER_PORT}"
+    volumes:
+      - ".:/usr/src/app"
+    env_file: .env

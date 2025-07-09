@@ -1,0 +1,14 @@
+# Global:
+node_modules
+**/coverage/
+.env
+*.log
+*_password.txt
+.pnpm-store
+sqldata/*
+server/certs
+
+# Builds:
+client/build/*
+server/build/*
+

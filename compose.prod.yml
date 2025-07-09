@@ -1,0 +1,22 @@
+services:
+    go:
+        build:
+            dockerfile: docker/go/Dockerfile.prod
+            args:
+                ENV: production
+                NODE_ENV: production
+        env_file: .env
+        secrets:
+            - SQLSERVER_USER
+            - SQLSERVER_PASS
+            - SQLSERVER_HOST
+            - SQLSERVER_DB
+            - SQLSERVER_PORT
+        ports:
+            - "3000:3000"
+            - "3001:3001"
+        deploy:
+            replicas: 2
+        depends_on:
+            redis:
+                condition: service_started

@@ -1,0 +1,49 @@
+{
+    "parser": "@babel/eslint-parser",
+    "extends": ["airbnb", "prettier"],
+    "plugins": ["react", "prettier"],
+    "ignorePatterns": ["*.ejs"],
+    "rules": {
+        "prettier/prettier": ["error"],
+        "jsx-a11y/click-events-have-key-events": 0,
+        "jsx-filename-extension": 0,
+        "react/jsx-filename-extension": 0,
+        "react/forbid-prop-types": 0,
+        "react/destructuring-assignment": 0,
+        "react/require-default-props": 0,
+        "import/no-mutable-exports": 0,
+        "no-param-reassign": 0,
+        "no-underscore-dangle": 0,
+        "func-names": 0,
+        "camelcase": 0
+    },
+    "env": {
+        "browser": true
+    },
+    "settings": {
+        "import/resolver": {
+            "alias": {
+                "map": [
+                    ["@actions", "./src/actions"],
+                    ["@client", "./"],
+                    ["@components", "./src/components"],
+                    ["@containers", "./src/containers"],
+                    ["@hooks", "./src/hooks"],
+                    ["@hoc", "./src/hoc"],
+                    ["@formatters", "./src/organizers/formatters"],
+                    ["@images", "./images"],
+                    ["@libs", "./src/libs"],
+                    ["@organizers", "./src/organizers"],
+                    ["@reducers", "./src/reducers"],
+                    ["@project", "../"],
+                    ["@socket", "./src/actions/socket"],
+                    ["@sounds", "./sounds"],
+                    ["@store", "./src/store"],
+                    ["@templates", "./src/templates"],
+                    ["@views", "./src/views"]
+                ],
+                "extensions": [".ts", ".js", ".jsx", ".json"]
+            }
+        }
+    }
+}

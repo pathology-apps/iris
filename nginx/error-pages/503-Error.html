@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>503 Error: Currently Unavailable</title>
+       <link rel="stylesheet" type="text/css" href="/error-extras/error-page.css">
+       <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    </head>
+    <body>
+        <div class="dark-strip">
+            <div class="row content-box"> 
+                <div class="col-lg-5 col-md-5 col-sm-12 col-xs-12 illust run">
+                    <img src="/error-extras/503-Page-Illustration.png" alt="Page Not Found" width="100%">
+                </div>
+                <div class="col-lg-7 col-md-7 col-sm-12 col-xs-12 content-txt">
+                    <h1>Oh hey ...</h1>
+                    <p class="larger"><br/>
+                        You might want to come back in a few minutes.<br /> This page will refresh when the site is back.<br />
+                        <span>Error 503: Site currently under maintenance.</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div>
+            <div class="content-box"> 
+                <div class="row extra-links">
+                    <div class="col-lg-5 col-mg-5 col-sm-12">&nbsp;</div>
+                    <div class="col-lg-7 col-mg-7 col-sm-12">
+                        <div class="row">
+                            <div class="col-lg-12 col-md-12"><strong>These pages are not affected:</strong></div>
+                        </div>
+                        <div class="row">
+                            <div class="col-lg-4 col-md-4 col-sm-12">
+                                <a href="http://mlabs.umich.edu/">M Laboratories</a>
+                                <a href="https://apps.medialab.com/vanity/umichigan">MediaLab</a>
+                            </div>
+                            <div class="col-lg-4 col-md-4 col-sm-12">
+                                <a href="https://www.med.umich.edu/clinical">Michigan Medicine Clinical Page</a>
+                            </div>
+                            <div class="col-lg-4 col-md-4 col-sm-12">
+                                <img src="/error-extras/MichMed-Logo.jpg" alt="Michigan Medicine" class="mich-med-logo">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+  <noscript>Your browser doesn’t support javascript. Please try refreshing the page manually every few minutes.</noscript>
+
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+  <script>
+  /* Set starting and maximum retry times in seconds */
+  var retry_current = 8, // first refresh at 8 seconds
+      retry_max = 4096, // refresh time truncated at about 68 minutes
+      check_response = function() {
+      $.ajax(
+          {
+              url: window.location.href,
+              type: "HEAD",
+              complete: function (jqXHR) {
+                  switch (jqXHR.status) {
+                      case 200:
+                          window.location.reload(true);
+                          break;
+                      case 503:
+                          if(retry_current < retry_max) {
+                              retry_current *= 2;
+                          }
+                          setTimeout(check_response, retry_current * 1000);
+                  }
+              }
+          });
+      };
+    setTimeout(check_response, retry_current * 1000);
+    </script>
+</body>
+</html>

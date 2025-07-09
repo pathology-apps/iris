@@ -1,0 +1,115 @@
+services:
+  go:
+    build:
+      context: .
+    secrets:
+      - SQLSERVER_USER
+      - SQLSERVER_PASS
+      - SQLSERVER_HOST
+      - SQLSERVER_DB
+      - SQLSERVER_PORT
+      - POSTGRES_USER
+      - POSTGRES_PASS
+      - POSTGRES_HOST
+      - POSTGRES_DB
+      - POSTGRES_PORT
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/v2/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 6
+      start_period: 60s
+    env_file: .env
+    depends_on:
+      - redis
+
+  redis:
+    image: ${REDIS_IMAGE:-registry-prod.app.med.umich.edu/pathinfo/containers/databases/redis:7.2.5-alpine3.20}
+    environment:
+      SECRETS_DIR: ${SECRETS_DIR}
+    secrets:
+      - REDIS_PASS
+    volumes:
+      - "redis:/data"
+    ports:
+      - "6379:6379"
+
+  iipsrv:
+    build:
+      dockerfile: docker/iipsrv/iipsrv.Dockerfile
+      context: .
+    ports: 
+      - ${IIP_PORT:-9000}:9000
+    volumes:
+      - /mnt/lrc-images:/root/src/images
+
+  postgres:
+    image: postgres:15
+    depends_on:
+      - nginx
+    volumes:
+      - database:/var/lib/postgresql/data
+    ports:
+      - ${DB_PORT_LOCAL:-5432}:5432
+    environment:
+      POSTGRES_PASSWORD: 12345
+      POSTGRES_DB: vsb
+    command: ["/bin/bash", "-c", "apt-get update && apt-get install -y pv && docker-entrypoint.sh postgres"]
+
+  nginx:
+    build:
+      dockerfile: docker/nginx/nginx.Dockerfile
+      context: .
+    volumes:
+      - ./nginx:/build/services/nginx
+      - ./app:/build/app
+      - ./server/certs:/etc/nginx/ssl
+    ports:
+      - ${HTTP_PORT:-8082}:${HTTP_PORT:-8082}
+      - ${HTTPS_PORT:-443}:443
+    env_file: .env
+    environment:
+      NGINX_ENVSUBST_TEMPLATE_DIR: /build/services/nginx/templates
+      NGINX_ENVSUBST_TEMPLATE_SUFFIX: .ssl.nginx
+      NGINX_HOSTNAME: ${NGINX_HOSTNAME:-pathology.med.umich.edu}
+      WWW_DATA_ID: ${UID:-1000}
+      HTTP_PORT: ${HTTP_PORT:-8083}
+      HTTPS_PORT: ${HTTPS_PORT:-443}
+    depends_on:
+      - go
+
+volumes: 
+  redis:
+  database:
+
+secrets:
+  JWT_SECRET:
+    file: ./secrets/JWT_SECRET
+  ORACLE_TNS:
+    file: ./secrets/ORACLE_TNS
+  ORACLE_USER:
+    file: ./secrets/ORACLE_USER
+  ORACLE_PASS:
+    file: ./secrets/ORACLE_PASS
+  REDIS_PASS:
+    file: ./secrets/REDIS_PASS
+  SQLSERVER_USER:
+    file: ./secrets/SQLSERVER_USER
+  SQLSERVER_PASS:
+    file: ./secrets/SQLSERVER_PASS
+  SQLSERVER_HOST:
+    file: ./secrets/SQLSERVER_HOST
+  SQLSERVER_DB:
+    file: ./secrets/SQLSERVER_DB
+  SQLSERVER_PORT:
+    file: ./secrets/SQLSERVER_PORT
+  POSTGRES_USER:
+    file: ./secrets/POSTGRES_USER
+  POSTGRES_PASS:
+    file: ./secrets/POSTGRES_PASS
+  POSTGRES_HOST:
+    file: ./secrets/POSTGRES_HOST
+  POSTGRES_DB:
+    file: ./secrets/POSTGRES_DB
+  POSTGRES_PORT:
+    file: ./secrets/POSTGRES_PORT
