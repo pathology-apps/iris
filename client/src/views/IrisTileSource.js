@@ -44,10 +44,12 @@ import OpenSeadragon from 'openseadragon';
    * @memberof OpenSeadragon
    * @extends OpenSeadragon.TileSource
    *
+   * @param {String} type       - iris
    * @param {String} serverUrl  - Iris host server path (ex: "http://localhost:3000")
    * @param {String} slideId    - Image id (ex: "12345" for 12345.iris)
    *
    * Example: tileSources: {
+   *            type:         "iris",
    *            serverUrl:    "http://localhost:3000",
    *            slideId:      "12345"
    *          }
@@ -67,7 +69,7 @@ import OpenSeadragon from 'openseadragon';
     this.fetchMetadata = options.fetchMetadata || this.defaultFetchMetadata;
 
     $.TileSource.apply(this, [options]);
-    
+
     if (options && options.serverUrl && options.slideId) {
       var url = this.getMetadataUrl();
       this.fetchMetadata(url, this);
@@ -87,33 +89,33 @@ import OpenSeadragon from 'openseadragon';
       this._tileWidth = 256;
       this._tileHeight = 256;
 
-      this.width = data.extent.width;
-      this.height = data.extent.height;
+      this.tileSize = this._tileWidth;
+      this.tileOverlap = 0;
 
-      if (this.width <= 0 || this.height <= 0) {
-        const msg = "Invalid dimensions received from metadata.";
-        $.console.error(msg);
-        this.raiseEvent('open-failed', { message: msg });
-        return;
-      }
+      const layers = data.extent.layers;
+
+      const maxLayer = layers.length - 1;
+      const maxScale = layers[maxLayer].scale;
+      this.width = data.extent.width * maxScale;
+      this.height = data.extent.height * maxScale;
 
       this.dimensions = new $.Point(this.width, this.height);
-      // this.dimensions = new $.Point(
-      //   Math.round(this.width * data.extent.layers[data.extent.layers.length - 1].scale),
-      //   Math.round(this.height * data.extent.layers[data.extent.layers.length - 1].scale)
-      // );
-      console.log(this.dimensions);
       this.aspectRatio = this.width / this.height;
-      console.log(this.aspectRatio);
-
-      this.levelSizes = data.extent.layers.map(level => ({
-        width: level.x_tiles * this._tileWidth * level.scale,
-        height: level.y_tiles * this._tileHeight * level.scale,
-        xTiles: level.x_tiles
+      this.levelSizes = layers.map(level => ({
+        width: level.x_tiles * this._tileWidth,
+        height: level.y_tiles * this._tileHeight,
+        xTiles: level.x_tiles,
+        yTiles: level.y_tiles
       }));
 
-      this.levelScales = data.extent.layers.map(level => level.scale);
-      this.maxLevel = data.extent.layers.length - 1;
+      const fullResWidth = this.levelSizes[this.levelSizes.length - 1].width;
+
+      this.levelScales = this.levelSizes.map(level =>
+        level.width / fullResWidth
+      );
+
+      this.minLevel = 0;
+      this.maxLevel = this.levelSizes.length - 1;
     },
 
     defaultFetchMetadata: function(url, context) {
@@ -143,18 +145,15 @@ import OpenSeadragon from 'openseadragon';
     },
 
     getNumTiles: function(level) {
-      var levelSize = this.levelSizes[level];
-      var x = Math.ceil(levelSize.width / this._tileWidth);
-      var y = Math.ceil(levelSize.height / this._tileHeight);
-
-      return new $.Point(x, y);
+      if (level < this.minLevel || level > this.maxLevel || !this.levelSizes[level]) {
+        return new $.Point(0, 0);
+      }
+      return new $.Point(this.levelSizes[level].xTiles, this.levelSizes[level].yTiles);
     },
 
     getTileUrl: function(level, x, y) {
       const pos = y * this.levelSizes[level].xTiles + x;
-      const url = `${this.serverUrl}/slides/${this.slideId}/layers/${level}/tiles/${pos}`;
-
-      return url;
+      return `${this.serverUrl}/slides/${this.slideId}/layers/${level}/tiles/${pos}`;
     },
 
     getLevelScale: function(level) {
@@ -169,7 +168,6 @@ import OpenSeadragon from 'openseadragon';
         return;
       }
 
-      // Update internal properties with new options
       if (options.serverUrl) {
         this.serverUrl = options.serverUrl;
       }
@@ -177,7 +175,6 @@ import OpenSeadragon from 'openseadragon';
         this.slideId = options.slideId;
       }
 
-      // Re-fetch metadata if configuration changes
       this.ready = false;
       const url = this.getMetadataUrl();
       this.fetchMetadata(url, this);
@@ -188,5 +185,4 @@ import OpenSeadragon from 'openseadragon';
   $.extend(true, $.IrisTileSource.prototype, $.EventSource.prototype);
 
 }(OpenSeadragon));
-
 export default OpenSeadragon.IrisTileSource;

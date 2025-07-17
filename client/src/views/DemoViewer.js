@@ -10,8 +10,8 @@ const DemoViewer = () => {
     const [zoomLevel, setZoomLevel] = useState(1);
 
     // Demo configuration - using a sample slide ID
-    const demoSlideId = 425248;
-    const demoServerUrl = 'http://pathapp-ap-ds14a.med.umich.edu:3003';
+    const demoSlideId = "cervix_2x_jpeg";
+    const demoServerUrl = 'https://examples.restful.irisdigitalpathology.org';
 
     useEffect(() => {
         console.log("Initializing demo viewer with slide ID:", demoSlideId, " and server URL:", demoServerUrl);
